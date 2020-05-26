@@ -176,14 +176,23 @@ def pipeline_train(train, test, lim_unigram):
         id_ref[elem] = i
 
     # Create vectorizers and BOW and TF arrays for train set
-    bow_vectorizer = CountVectorizer(max_features=lim_unigram, stop_words=stop_words)
+    # bow_vectorizer = CountVectorizer(max_features=lim_unigram, stop_words=stop_words)
+    # bow_vectorizer = CountVectorizer(analyzer='char', ngram_range=(3, 3), max_features=lim_unigram, stop_words=stop_words)
+    # bow_vectorizer = CountVectorizer(max_features=lim_unigram, ngram_range=(2, 2), stop_words=stop_words)
+    bow_vectorizer = CountVectorizer(max_features=lim_unigram, ngram_range=(1, 2), stop_words=stop_words)
+    
     bow = bow_vectorizer.fit_transform(heads + bodies)  # Train set only
 
-    tfreq_vectorizer = TfidfTransformer(use_idf=False).fit(bow)
+    tfreq_vectorizer = TfidfTransformer(use_idf=False).fit(bow)    
     tfreq = tfreq_vectorizer.transform(bow).toarray()  # Train set only
 
-    tfidf_vectorizer = TfidfVectorizer(max_features=lim_unigram, stop_words=stop_words).\
-        fit(heads + bodies + test_heads + test_bodies)  # Train and test sets
+    # tfidf_vectorizer = TfidfVectorizer(max_features=lim_unigram, stop_words=stop_words).
+    #     fit(heads + bodies + test_heads + test_bodies)  # Train and test sets
+    # tfidf_vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(3, 3),
+    #                                      stop_words=stop_words, use_idf=False, norm='l2').fit(heads + bodies + test_heads + test_bodies)  # Train and test sets
+    # tfidf_vectorizer = TfidfVectorizer(max_features=lim_unigram, ngram_range=(2, 2), stop_words=stop_words).fit(heads + bodies + test_heads + test_bodies)  # Train and test sets
+    tfidf_vectorizer = TfidfVectorizer(max_features=lim_unigram, ngram_range=(1, 2), stop_words=stop_words).fit(heads + bodies + test_heads + test_bodies)  # Train and test sets
+        
 
     # Process train set
     for instance in train.instances:
@@ -282,7 +291,7 @@ def load_model(sess):
     saver.restore(sess, './model/model.checkpoint')
 
 
-def save_predictions(pred, file):
+def save_predictions(pred, file, custom_headers=False, headlines=None, ids=None):
 
     """
 
@@ -295,9 +304,25 @@ def save_predictions(pred, file):
     """
 
     with open(file, 'w') as csvfile:
-        fieldnames = ['Stance']
-        writer = DictWriter(csvfile, fieldnames=fieldnames)
+        check = True
+        if not custom_headers:
+            fieldnames = ['Stance']
+            writer = DictWriter(csvfile, fieldnames=fieldnames)
 
-        writer.writeheader()
-        for instance in pred:
-            writer.writerow({'Stance': label_ref_rev[instance]})
+            writer.writeheader()
+            for instance in pred:
+                writer.writerow({'Stance': label_ref_rev[instance]})
+
+                if check:
+                    print('sample instance: ', instance)
+                    check = False
+        else:
+            fieldnames = ['Headline', 'Body ID', 'Stance']
+            writer = DictWriter(csvfile, fieldnames=fieldnames)
+
+            writer.writeheader()
+            for i, instance in enumerate(pred):
+                row = {'Stance': label_ref_rev[instance]}
+                row['Headline'] = headlines[i]
+                row['Body ID'] = ids[i]
+                writer.writerow(row)
